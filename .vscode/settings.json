@@ -1,0 +1,25 @@
+{
+  // Your CMake project lives in the Assignments subfolder, not the repo root.
+  "cmake.sourceDirectory": "${workspaceFolder}/Assignments",
+
+  // Drive everything through CMakePresets.json (x64-debug / x64-release).
+  "cmake.useCMakePresets": "always",
+
+  // Let CMake Tools auto-source the Visual Studio developer environment so the
+  // MSVC compiler (cl.exe) and the Ninja that ships with VS are on PATH, even
+  // when you launch VS Code normally (not from a Developer Prompt).
+  "cmake.useVsDeveloperEnvironment": "auto",
+
+  // Belt-and-suspenders: guarantee the preset's $env{VCPKG_ROOT} resolves for
+  // the configure step regardless of whether the user env var has propagated.
+  "cmake.configureEnvironment": {
+    "VCPKG_ROOT": "C:/Program Files/Microsoft Visual Studio/18/Community/VC/vcpkg"
+  },
+
+  // IntelliSense: read include paths / defines straight from CMake.
+  "C_Cpp.default.configurationProvider": "ms-vscode.cmake-tools",
+
+  "files.associations": {
+    "*.h": "cpp"
+  }
+}
