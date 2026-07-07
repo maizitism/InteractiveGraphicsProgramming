@@ -45,10 +45,7 @@ Camera cam;
 Mouse mouse;
 Scene scene;
 
-cy::Matrix4f mv;
 cy::Vec4f viewPos;
-
-
 
 float deg2rad(float deg){
     return deg * PI/180;
@@ -57,6 +54,7 @@ float deg2rad(float deg){
 void updateMatrices(){
     cy::Matrix4f rotXYZ = cy::Matrix4f::RotationXYZ(deg2rad(cam.roll), deg2rad(cam.yaw), deg2rad(cam.pitch));
     cy::Matrix4f trans = cy::Matrix4f::Translation(cy::Vec3f(0, 0, -cam.distance));
+    cy::Matrix4f mv;
     cy::Matrix4f mvp;
     
     mv = trans * rotXYZ * scene.model;
