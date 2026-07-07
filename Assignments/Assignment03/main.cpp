@@ -13,50 +13,75 @@
 // --- GLOBALS --- //
 int width = 800;
 int height = 600;
-
-unsigned int vaoID[1];
-unsigned int vboID[1]; 
-unsigned int nMesh = 0;
+const float PI = 3.14159f;
 cy::GLSLProgram prog;
-cy::Matrix4f model;
-cy::Matrix4f proj;
-cy::Matrix4f rotXYZ;
-cy::Matrix4f trans;
-cy::Matrix4f mvp;
 
-cy::Vec3f bbMax;
-cy::Vec3f bbMin;
+struct Camera {
+    float yaw = 0.0f;
+    float pitch = 0.0f;
+    float roll = -45.0f;
+    float distance = 45.0f;
+    float maxDist = 100.0f;
+    float minDist = 20.0f;
+    float sensitivity = 0.2f;
+};
+struct Mouse{
+    int button = 0;
+    int previousX = 0;
+    int previousY = 0;
+};
+struct Scene{
+    unsigned int vaoID[1];
+    unsigned int vboID[1]; 
+    unsigned int nMesh;
+    cy::Matrix4f model;
+    cy::Matrix4f proj;
+    cy::Vec3f bbMax;
+    cy::Vec3f bbMin;
+    float radius;
+};
+
+Camera cam;
+Mouse mouse;
+Scene scene;
 
 cy::Matrix4f mv;
 cy::Vec4f viewPos;
-float radius;
-float camDist;
 
 
-int mouseDownState = 0;
-int mousePrevX = 0;
-int mousePrevY = 0;
-float roll = 0.0f; // accumulate rotation around X
-float pitch = 0.0f; // accumulate rotation around Y
-float yaw = 0.0f; // accumulate rotation around Z
-float distance = 45.0f;
-int maxCameraDistance = 100;
-int minCameraDistance = 20;
-float sensitivity = 0.2f;
 
+float deg2rad(float deg){
+    return deg * PI/180;
+}
 
 void updateMatrices(){
-    camDist = std::clamp(distance, (float)minCameraDistance, (float)maxCameraDistance);
-    trans = cy::Matrix4f::Translation(cy::Vec3f(0, 0, -camDist));
-    rotXYZ = cy::Matrix4f::RotationXYZ(roll * 3.14159/180, yaw * 3.14159/180, pitch * 3.14159/180);
+    cy::Matrix4f rotXYZ = cy::Matrix4f::RotationXYZ(deg2rad(cam.roll), deg2rad(cam.yaw), deg2rad(cam.pitch));
+    cy::Matrix4f trans = cy::Matrix4f::Translation(cy::Vec3f(0, 0, -cam.distance));
+    cy::Matrix4f mvp;
     
-    mv = trans * rotXYZ * model;
-    mvp = proj * mv;
+    mv = trans * rotXYZ * scene.model;
+    mvp = scene.proj * mv;
     prog["mv"] = mv;
     prog["mvp"] = mvp;
-    radius = (bbMax-bbMin).Length() * 0.5;
-    prog["nearRange"] = camDist - radius;
-    prog["farRange"] = camDist + radius;
+    prog["nearRange"] = cam.distance - scene.radius;
+    prog["farRange"] = cam.distance + scene.radius;
+}
+
+void computeStatics(cy::TriMesh& mesh){
+
+    float fovRadians = 60 * 3.14159/180;
+    float aspect = 800.0f/600.0f;
+    float zNear = 0.1f;
+    float zFar = 5000.0f;
+    mesh.ComputeBoundingBox();
+    scene.bbMax = mesh.GetBoundMax();
+    scene.bbMin = mesh.GetBoundMin();
+    scene.radius = (scene.bbMax-scene.bbMin).Length() * 0.5;
+
+    cy::Vec3f center = (scene.bbMin + scene.bbMax) * 0.5f;
+    
+    scene.model = cy::Matrix4f::Translation(-center);
+    scene.proj = cy::Matrix4f::Perspective(fovRadians, aspect, zNear, zFar);
 }
 
 // --- OpenGL things --- //
@@ -65,7 +90,7 @@ void myDisplay() {
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
     //opengl draw calls
-    glDrawArrays(GL_POINTS, 0, nMesh);
+    glDrawArrays(GL_POINTS, 0, scene.nMesh);
 
     // swap buffers
     glutSwapBuffers();
@@ -73,22 +98,22 @@ void myDisplay() {
 
 // -- Registered callbacks -- //
 void myMouse(int button, int state, int x, int y) {
-    mouseDownState = button;
-    mousePrevX = x;
-    mousePrevY = y;
+    mouse.button = button;
+    mouse.previousX = x;
+    mouse.previousY = y;
 }
 
 void myMouseMotion(int x, int y) {
-    switch(mouseDownState){
+    switch(mouse.button){
         case 0: // LMB
-            yaw += (x-mousePrevX) * sensitivity;
-            roll += (y-mousePrevY) * sensitivity;
+            cam.yaw += (x-mouse.previousX) * cam.sensitivity;
+            cam.roll += (y-mouse.previousY) * cam.sensitivity;
         break;
         case 1: // MMB
-            pitch += (x - mousePrevX) * sensitivity;
+            cam.pitch += (x - mouse.previousX) * cam.sensitivity;
         break;
         case 2: // RMB
-            distance += (y - mousePrevY) * sensitivity;
+            cam.distance = std::clamp(cam.distance + (y - mouse.previousY) * cam.sensitivity, cam.minDist, cam.maxDist);
         break;
         default:
             printf("What yall doin here?");
@@ -97,10 +122,10 @@ void myMouseMotion(int x, int y) {
     // LMB drag moves rotates on X and Z (ID 0)
     // RMB drag moves camera distance (ID 2)
     // MMB drag rotates on Z (ID 1) 
-    printf("%f, %f, %f, %f\n", roll, pitch, yaw, distance);
+    //printf("%f, %f, %f, %f\n", roll, pitch, yaw, distance);
     updateMatrices();
-    mousePrevX = x;
-    mousePrevY = y;
+    mouse.previousX = x;
+    mouse.previousY = y;
     glutPostRedisplay();
 }
 
@@ -168,7 +193,7 @@ int main(int argc, char** argv)
         return -1;
     }
     cy::TriMesh mesh = loadMesh(argv[1]);
-    nMesh = mesh.NV();
+    scene.nMesh = mesh.NV();
     // initialise shaders   
     unsigned int success = prog.BuildFiles("shader.vert", "shader.frag");
     if (!success){
@@ -180,13 +205,13 @@ int main(int argc, char** argv)
     // VAO - "shipping label" - records how to interpret VBO
     // VAO impl
 
-    glGenVertexArrays(1, &vaoID[0]); // first, make VA
-    glBindVertexArray(vaoID[0]); // bind it, set it as operational
+    glGenVertexArrays(1, &scene.vaoID[0]); // first, make VA
+    glBindVertexArray(scene.vaoID[0]); // bind it, set it as operational
 
     // VBO impl 
 
-    glGenBuffers(1, &vboID[0]);
-    glBindBuffer(GL_ARRAY_BUFFER, vboID[0]);
+    glGenBuffers(1, &scene.vboID[0]);
+    glBindBuffer(GL_ARRAY_BUFFER, scene.vboID[0]);
     glBufferData(GL_ARRAY_BUFFER, sizeof(cy::Vec3f)*mesh.NV(), &mesh.V(0), GL_STATIC_DRAW);
 
     // tell about everything to vertex shader
@@ -194,36 +219,9 @@ int main(int argc, char** argv)
     glEnableVertexAttribArray(pos);
     glVertexAttribPointer(pos, 3, GL_FLOAT, GL_FALSE, 0, (GLvoid*)0);
 
-
-    // build MVP matrix - Model, View, Projection
-    float fovRadians = 60 * 3.14159/180;
-    float aspect = 800.0f/600.0f;
-    float zNear = 0.1f;
-    float zFar = 5000.0f;
-
-    float angleRadians = -45 * 3.14159/180;
-
-    mesh.ComputeBoundingBox();
-    bbMax = mesh.GetBoundMax();
-    bbMin = mesh.GetBoundMin();
-
-    cy::Vec3f center = (bbMin + bbMax) * 0.5f;
-
-    // define camera
-    model = cy::Matrix4f::Translation(-center);
-    proj = cy::Matrix4f::Perspective(fovRadians, aspect, zNear, zFar);
-
-    
-    roll = angleRadians;
+    computeStatics(mesh);
     updateMatrices();
-    rotXYZ = cy::Matrix4f::RotationXYZ(angleRadians, 0, 0);
-    trans = cy::Matrix4f::Translation(cy::Vec3f(0, 0, -camDist));
-
-    // compute the nearRange and farRange bounding box diagonal for coloring
-    radius = (bbMax-bbMin).Length() * 0.5;
-    prog["nearRange"] = distance - radius;
-    prog["farRange"] = distance + radius;
-    
+   
     prog.Bind();
     glutMainLoop();
     return 0;
