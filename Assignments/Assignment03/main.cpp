@@ -45,6 +45,20 @@ int minCameraDistance = 20;
 float sensitivity = 0.2f;
 
 
+void updateMatrices(){
+    camDist = std::clamp(distance, (float)minCameraDistance, (float)maxCameraDistance);
+    trans = cy::Matrix4f::Translation(cy::Vec3f(0, 0, -camDist));
+    rotXYZ = cy::Matrix4f::RotationXYZ(roll * 3.14159/180, yaw * 3.14159/180, pitch * 3.14159/180);
+    
+    mv = trans * rotXYZ * model;
+    mvp = proj * mv;
+    prog["mv"] = mv;
+    prog["mvp"] = mvp;
+    radius = (bbMax-bbMin).Length() * 0.5;
+    prog["nearRange"] = camDist - radius;
+    prog["farRange"] = camDist + radius;
+}
+
 // --- OpenGL things --- //
 void myDisplay() {
     // clear the viewport
@@ -84,17 +98,7 @@ void myMouseMotion(int x, int y) {
     // RMB drag moves camera distance (ID 2)
     // MMB drag rotates on Z (ID 1) 
     printf("%f, %f, %f, %f\n", roll, pitch, yaw, distance);
-    camDist = std::clamp(distance, (float)minCameraDistance, (float)maxCameraDistance);
-    trans = cy::Matrix4f::Translation(cy::Vec3f(0, 0, -camDist));
-    rotXYZ = cy::Matrix4f::RotationXYZ(roll * 3.14159/180, yaw * 3.14159/180, pitch * 3.14159/180);
-    
-    mv = trans * rotXYZ * model;
-    mvp = proj * mv;
-    prog["mv"] = mv;
-    prog["mvp"] = mvp;
-    radius = (bbMax-bbMin).Length() * 0.5;
-    prog["nearRange"] = camDist - radius;
-    prog["farRange"] = camDist + radius;
+    updateMatrices();
     mousePrevX = x;
     mousePrevY = y;
     glutPostRedisplay();
@@ -116,23 +120,6 @@ void myModifiers(int key, int x, int y) {
         prog.BuildFiles("shader.vert", "shader.frag");
     } 
 }
-
-// void myIdle() {
-
-//     roll += 0.2;
-
-//     camDist = std::clamp(distance, (float)minCameraDistance, (float)maxCameraDistance);
-//     trans = cy::Matrix4f::Translation(cy::Vec3f(0, 0, -camDist));
-//     rotXYZ = cy::Matrix4f::RotationXYZ(roll * 3.14159/180, yaw * 3.14159/180, pitch * 3.14159/180);
-//     mv = trans * rotXYZ * model;
-//     mvp = proj * mv;
-//     prog["mv"] = mv;
-//     prog["mvp"] = mvp;
-//     radius = (bbMax-bbMin).Length() * 0.5;
-//     prog["nearRange"] = camDist - radius;
-//     prog["farRange"] = camDist + radius;
-//     glutPostRedisplay();
-// }
 
 
 
@@ -222,16 +209,16 @@ int main(int argc, char** argv)
 
     cy::Vec3f center = (bbMin + bbMax) * 0.5f;
 
+    // define camera
     model = cy::Matrix4f::Translation(-center);
     proj = cy::Matrix4f::Perspective(fovRadians, aspect, zNear, zFar);
+
+    
+    roll = angleRadians;
+    updateMatrices();
     rotXYZ = cy::Matrix4f::RotationXYZ(angleRadians, 0, 0);
-    trans = cy::Matrix4f::Translation(cy::Vec3f(0, 0, -45));
+    trans = cy::Matrix4f::Translation(cy::Vec3f(0, 0, -camDist));
 
-
-    mv = trans * rotXYZ * model;
-    mvp = proj * mv;
-    prog["mv"] = mv;
-    prog["mvp"] = mvp;
     // compute the nearRange and farRange bounding box diagonal for coloring
     radius = (bbMax-bbMin).Length() * 0.5;
     prog["nearRange"] = distance - radius;
