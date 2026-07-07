@@ -40,7 +40,7 @@ float roll = 0.0f; // accumulate rotation around X
 float pitch = 0.0f; // accumulate rotation around Y
 float yaw = 0.0f; // accumulate rotation around Z
 float distance = 45.0f;
-int maxCameraDistance = 5000;
+int maxCameraDistance = 100;
 int minCameraDistance = 20;
 float sensitivity = 0.2f;
 
@@ -111,9 +111,7 @@ void myKeyboard(unsigned char key, int x, int y) {
 }
 
 void myModifiers(int key, int x, int y) {
-    
-    int modifier = glutGetModifiers();
-    if (modifier = GLUT_KEY_F6){
+    if (key == GLUT_KEY_F6){
         printf("Shaders recompiled. \n");
         prog.BuildFiles("shader.vert", "shader.frag");
     } 
