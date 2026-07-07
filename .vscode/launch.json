@@ -23,26 +23,15 @@
       "preLaunchTask": "CMake: build"
     },
     {
-      "name": "Debug Assignment02 (nautilus)",
+      "name": "Debug Assignment03 (teapot)",
       "type": "cppvsdbg",
       "request": "launch",
-      "program": "${workspaceFolder}/Assignments/out/build/x64-debug/Assignment02/Assignment02.exe",
-      // Reproduces the VS_DEBUGGER_* settings from Assignment02/CMakeLists.txt:
-      "args": ["nautilus.obj"],
-      "cwd": "${workspaceFolder}/Assignments/Assignment02",
+      "program": "${workspaceFolder}/Assignments/out/build/x64-debug/Assignment03/Assignment03.exe",
+      "args": ["teapot.obj"],
+      "cwd": "${workspaceFolder}/Assignments/Assignment03",
       "console": "integratedTerminal",
       "preLaunchTask": "CMake: build"
     },
-    {
-      "name": "Debug Assignment02 (Triple T)",
-      "type": "cppvsdbg",
-      "request": "launch",
-      "program": "${workspaceFolder}/Assignments/out/build/x64-debug/Assignment02/Assignment02.exe",
-      // Reproduces the VS_DEBUGGER_* settings from Assignment02/CMakeLists.txt:
-      "args": ["tripleT.obj"],
-      "cwd": "${workspaceFolder}/Assignments/Assignment02",
-      "console": "integratedTerminal",
-      "preLaunchTask": "CMake: build"
-    }
+
   ]
 }

@@ -16,4 +16,5 @@ target_include_directories(cy_headers INTERFACE ${CMAKE_CURRENT_SOURCE_DIR}/../l
 # Add each assignment. Just add a new line when you start a new one.
 add_subdirectory(Assignment01)
 add_subdirectory(Assignment02)
+add_subdirectory(Assignment03)
 # add_subdirectory(common)   # uncomment if you make shared code
