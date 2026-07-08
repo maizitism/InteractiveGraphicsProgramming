@@ -8,6 +8,8 @@
 #include <string>
 #include <math.h>
 #include <algorithm>
+#include <vector>
+#include <unordered_map>
 
 
 // --- GLOBALS --- //
@@ -49,6 +51,10 @@ cy::Vec4f viewPos;
 
 float deg2rad(float deg){
     return deg * PI/180;
+}
+
+uint64_t pack(unsigned int pIDX, unsigned int nIDX){
+    return (uint64_t(pIDX) << 32) | uint32_t(nIDX);
 }
 
 void updateMatrices(){
@@ -145,7 +151,6 @@ void myModifiers(int key, int x, int y) {
 }
 
 
-
 void initGlew(){
     GLenum err = glewInit();
     if(err != GLEW_OK){
@@ -203,14 +208,62 @@ int main(int argc, char** argv)
     // VAO - "shipping label" - records how to interpret VBO
     // VAO impl
 
-    glGenVertexArrays(1, &scene.vaoID[0]); // first, make VA
+    glGenVertexArrays(1, &scene.vaoID[0]); // first, make VAO
     glBindVertexArray(scene.vaoID[0]); // bind it, set it as operational
+
+    // EBO impl
+    struct Vertex{
+        cy::Vec3f position;
+        cy::Vec3f normal;
+    };
+    std::vector<Vertex> vertices;
+    std::vector<unsigned int> indices;
+    std::unordered_map<uint64_t, unsigned int> seen;
+
+    for(unsigned int i = 0; i < mesh.NF(); i++ ){
+        cy::TriMesh::TriFace posFace = mesh.F(i);
+        cy::TriMesh::TriFace normalsFace = mesh.FN(i);
+        //iterate over every vertex in face
+        for(unsigned int j = 0; j<=2; j++){
+            unsigned int positionIndex = posFace.v[j];
+            unsigned int normalIndex = normalsFace.v[j];
+            uint64_t key = pack(positionIndex, normalIndex);
+            if(auto search = seen.find(key); search != seen.end()){
+                indices.emplace_back(search->second);
+            }
+            else{
+                Vertex v;
+                v.position = mesh.V(positionIndex);
+                v.normal = mesh.VN(normalIndex);
+                size_t slot = vertices.size();
+                vertices.emplace_back(v);
+                indices.emplace_back(slot);
+                seen[key] = slot;
+            }
+        }
+    }
 
     // VBO impl 
 
     glGenBuffers(1, &scene.vboID[0]);
     glBindBuffer(GL_ARRAY_BUFFER, scene.vboID[0]);
     glBufferData(GL_ARRAY_BUFFER, sizeof(cy::Vec3f)*mesh.NV(), &mesh.V(0), GL_STATIC_DRAW);
+
+
+    // for each face i and corner j, read the position and normals
+    // look at a "seen" structure
+        // if seen push stored index into indices,
+        // if not, build the vertex, push it to the end and put it into seen
+    
+    // faces in cyTriMesh are returned with cy::triface face = mesh.F()
+    // cy::triface has 3 vertex indices - face.v[]
+    // normals for face indices can be gotten by cy::TriFace faceNormal = mesh.FN()
+    // they again have vertex indices, faceNormal.v[]
+
+    // create data new structure: struct: Vertex, contains cy::vec3f pos, and cy::vec3f normal
+    // make a vector out of them std::vector <Vertex> vertices - the new VBO
+    // and keep their ordering in a std::vector<unsigned int> indices - the EBO
+   
 
     // tell about everything to vertex shader
     GLuint pos = glGetAttribLocation(prog.GetID(), "pos"); // find position of pos in variable in vertex shader
