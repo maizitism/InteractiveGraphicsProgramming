@@ -35,7 +35,8 @@ struct Mouse{
 struct Scene{
     unsigned int vaoID[1];
     unsigned int vboID[1]; 
-    unsigned int nMesh;
+    unsigned int eboID[1];
+    unsigned int nIndices;
     cy::Matrix4f model;
     cy::Matrix4f proj;
     cy::Vec3f bbMax;
@@ -94,7 +95,7 @@ void myDisplay() {
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
     //opengl draw calls
-    glDrawArrays(GL_POINTS, 0, scene.nMesh);
+    glDrawElements(GL_TRIANGLES, scene.nIndices, GL_UNSIGNED_INT, 0);
 
     // swap buffers
     glutSwapBuffers();
@@ -187,6 +188,7 @@ int main(int argc, char** argv)
     CY_GL_REGISTER_DEBUG_CALLBACK;
     glutDisplayFunc(myDisplay);
     glClearColor(0, 0, 0, 0);
+    glEnable(GL_DEPTH_TEST);
 
     //initialise glew
     
@@ -196,7 +198,6 @@ int main(int argc, char** argv)
         return -1;
     }
     cy::TriMesh mesh = loadMesh(argv[1]);
-    scene.nMesh = mesh.NV();
     // initialise shaders   
     unsigned int success = prog.BuildFiles("shader.vert", "shader.frag");
     if (!success){
@@ -243,32 +244,21 @@ int main(int argc, char** argv)
         }
     }
 
-    // VBO impl 
+    // EBO definition
+    scene.nIndices = (unsigned int)indices.size();
+    glGenBuffers(1, &scene.eboID[0]);
+    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, scene.eboID[0]);
+    glBufferData(GL_ELEMENT_ARRAY_BUFFER, indices.size() * sizeof(unsigned int), indices.data(), GL_STATIC_DRAW);
 
+    // VBO impl     
     glGenBuffers(1, &scene.vboID[0]);
     glBindBuffer(GL_ARRAY_BUFFER, scene.vboID[0]);
-    glBufferData(GL_ARRAY_BUFFER, sizeof(cy::Vec3f)*mesh.NV(), &mesh.V(0), GL_STATIC_DRAW);
-
-
-    // for each face i and corner j, read the position and normals
-    // look at a "seen" structure
-        // if seen push stored index into indices,
-        // if not, build the vertex, push it to the end and put it into seen
-    
-    // faces in cyTriMesh are returned with cy::triface face = mesh.F()
-    // cy::triface has 3 vertex indices - face.v[]
-    // normals for face indices can be gotten by cy::TriFace faceNormal = mesh.FN()
-    // they again have vertex indices, faceNormal.v[]
-
-    // create data new structure: struct: Vertex, contains cy::vec3f pos, and cy::vec3f normal
-    // make a vector out of them std::vector <Vertex> vertices - the new VBO
-    // and keep their ordering in a std::vector<unsigned int> indices - the EBO
-   
+    glBufferData(GL_ARRAY_BUFFER, vertices.size()*sizeof(Vertex), vertices.data(), GL_STATIC_DRAW);  
 
     // tell about everything to vertex shader
     GLuint pos = glGetAttribLocation(prog.GetID(), "pos"); // find position of pos in variable in vertex shader
     glEnableVertexAttribArray(pos);
-    glVertexAttribPointer(pos, 3, GL_FLOAT, GL_FALSE, 0, (GLvoid*)0);
+    glVertexAttribPointer(pos, 3, GL_FLOAT, GL_FALSE, sizeof(Vertex), (GLvoid*)0);
 
     computeStatics(mesh);
     updateMatrices();
